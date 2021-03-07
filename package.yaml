@@ -1,0 +1,40 @@
+name:                haskell-snake
+version:             0.1.0.0
+github:              "githubuser/haskell-snake"
+license:             BSD3
+author:              "Author name here"
+maintainer:          "example@example.com"
+copyright:           "2021 Author name here"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/haskell-snake#readme>
+
+dependencies:
+  - base >= 4.7 && < 5
+  - ansi-terminal
+  - Cabal
+  - random
+
+executables:
+  haskell-snake-exe:
+    main:                Snake.hs
+    source-dirs:         .
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - haskell-snake
+    - ansi-terminal
+    - random
+    - Cabal
