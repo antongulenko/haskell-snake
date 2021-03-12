@@ -6,10 +6,11 @@ import Data.IORef ( newIORef, readIORef, writeIORef )
 import qualified Data.Foldable
 import Control.Concurrent ( threadDelay, forkIO )
 import System.Random ( Random(randomRIO) )
+import qualified GHC.IORef
 
 fieldX = 20
 fieldY = 20
-moveSleep = 100 * 1000
+moveSleep = 80 * 1000
 
 main = do
   hSetBuffering stdin NoBuffering
@@ -45,7 +46,8 @@ handleInput key hasCollided direction
 
 propagateDirection char direction = do
   let translated = translateDirection char
-  writeIORef direction translated
+  currentDir <- readIORef direction
+  writeIORef direction (smoothDirection translated currentDir)
 
 translateDirection char
     | char == "\ESC[A" = "up"
@@ -53,6 +55,16 @@ translateDirection char
     | char == "\ESC[C" = "right"
     | char == "\ESC[D" = "left"
     | otherwise = "none"
+
+smoothDirection dir previousDir
+    | dir == oppositeDirection previousDir = previousDir
+    | otherwise = dir
+
+oppositeDirection dir
+    | dir == "up" = "down"
+    | dir == "down" = "up"
+    | dir == "left" = "right"
+    | dir == "right" = "left"
 
 runSnake direction collision snake = do
     x <- randomRIO (0, fieldX-1)
@@ -99,7 +111,7 @@ collide food snake@(head:tail)
 
 draw food snake = do
   -- Compute content first
-  let content = drawLines "" 0 fieldY food snake
+  let content = drawLines "" 0 food snake
   let line = replicate fieldX '━'
   let buf = "┏" ++ line ++ "┓\n" ++ content ++ "┗" ++ line ++ "┛\n"
 
@@ -107,20 +119,25 @@ draw food snake = do
   setCursorPosition 0 0
   putStr buf
 
-drawLines content lineNum maxLines food snake
-  | lineNum < maxLines = do
-      let newContent = content ++ "┃" ++ drawLine "" 0 fieldX lineNum food snake ++ "┃\n"
-      drawLines newContent (lineNum+1) maxLines food snake
+drawLines content lineNum food snake
+  | lineNum < fieldY = do
+      let newContent = content ++ "┃" ++ drawLinePair "" 0 lineNum food snake ++ "┃\n"
+      drawLines newContent (lineNum+2) food snake
   | otherwise = content
 
-drawLine line colNum maxCols lineNum food snake
-  | colNum < maxCols = do
-      let newLine = line ++ getPixel colNum lineNum food snake
-      drawLine newLine (colNum+1) maxCols lineNum food snake
+drawLinePair line colNum lineNum food snake
+  | colNum < fieldX = do
+      let newLine = line ++ getCharacter (Point colNum (lineNum+1)) (Point colNum (lineNum+0)) food snake
+      drawLinePair newLine (colNum+1) lineNum food snake
   | otherwise = line
 
-getPixel x y food snake
-  | Point x y == food = "◈"
-  | Point x y == head snake = "●"
-  | Point x y `elem` snake = "○"
+getCharacter lower@(Point x1 y1) upper@(Point x2 y2) food snake
+  -- █ ▛ ▜ ▟ ▙ ▀ ▄ ◚ ◛ ◠ ◡ ● ○ ◈
+  | lower `elem` snake && upper `elem` snake = "█"
+  | lower `elem` snake && upper == food = "▙"
+  | upper `elem` snake && lower == food = "▛"
+  | lower `elem` snake = "▄"
+  | upper `elem` snake = "▀"
+  | lower == food = "◛"
+  | upper == food = "◚"
   | otherwise = " "
